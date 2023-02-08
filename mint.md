@@ -1,3 +1,64 @@
+The contract for minting Synth will be split into two stages. In the first stage, the
+reissuance token will be used to mint an arbitrary amount of Synth. The reissuance token
+then will be sent to the same output script that it was spent from. Thus the reissuance
+token will be forever locked in the first stage covenant (of course there might be an
+"escape hatch"-type branch in that covenant, too)
+
+In the first-stage transaction, the Synth will be sent to the second stage covenant, and
+the second-stage covenant will release that Synth only if appropriate amount of the
+collateral is sent to be locked in the Safe covenant
+
+The first-stage covenant code will construct the second-stage covenant code with the use
+of oracle-attested price data, and will ensure that Synth is sent to the covenant that is
+identical to that constructed covenant code.
+
+For constructing the second-stage covenant, the First-stage covenant will use price
+and timestamp from oracle-attested price data, and also the amount of the Synth issued,
+taken from the introspection of the first-stage transaction data. It may utilize partial
+hash opcodes (SHA256INITIALIZE, SHA256UPDATE, SHA256FINALIZE) to avoid constructing
+the full code of the second-stage covenant
+
+Second-stage covenant will have two branches, one which will release synth if appropriate
+amount of collateral is locked in a Safe, and another which will allow anyone to burn the
+locked Synth if the oracle-attested price used in the first stage was out-of-date
+
+Second-stage covenant will utilize two timelocks to ensure that the oracle-attested price
+data that was used in the first stage was recent.
+
+The relative timelock in the "Synth release only if collateral is sent to Safe" branch
+will ensure that this Synth release will be possible only after the second stage was in
+confirmed state for certain time.  Let's call this time t_{SR} for "time to Synth release".
+
+The absolute timelock in "Anyone can burn synth if expired price attestation was used"
+branch will enable the locked Synth to be burned by anyone after the network timestamp
+would exceed the value of (ts_{P} + i_{P} + t_{SR} + x), where
+
+- ts_{P} is the timestamp from price attestation data used in the first stage
+- i_{P} is the interval between two subsequent releases of subsequent price attestations by oracle
+- t_{SR} is "time to Synth release"
+- x is additional time given for "leeway"
+
+The minter is expected to release Synth and lock their collateral right after t_{SR} has passed
+after they sent Synth to the second stage, but before the absolute time of the timelock of
+"Burn Synth" branch is reached. If mailcious minter uses an expired attestation data, the
+timestamp ts_{P} will be too far in the past, and the "Burn synth" branch will be enabled right
+from the start of the second stage, before the relative timelock of "Synth release" branch
+has passed
+
+If the minter incurs some expenses for the minting (such as "minting fee" in the first stage),
+then using expired price attestation, only for the minted Synth to be burned, will not be rational
+behavior. This may be used to annoy other participants in the contract, but this is where the
+amount of "minting fee" will have its role as deterrent
+
+The Treasury, or the public is expected to monitor the network for malicious minting, and burn
+Synth in such attempts. If the "minting fee" is paid in the first stage, then the network fee
+for the burn transactions will be offset by the "minting fee". For the public interested in the
+correct functioning of the contract, burning malicious minting attempts may be beneficial because
+the order of the contract will be preserved, and paying network fee in this case could be an
+acceptable price
+
+====
+
 To unlock reissuance token (RT), first-stage covenant code must ensure the following:
 
 - Transaction contains exactly two inputs
@@ -11,6 +72,10 @@ To unlock reissuance token (RT), first-stage covenant code must ensure the follo
     * Second output is ublinded Synth that goes to second stage covenant
     * Next output (may be absent) is unblinded L-BTC (change from the fee)
     * Last output is the transaction fee (L-BTC)
+
+Note: if the first stage would include paying the minting fee to the treasury, then the transaction
+will have one extra mandatory output (which will be unblinded, too), and that output will be sending
+the minting fee.
 
 First stage covenant code must also ensure that second-stage covenant script is the one
 that enforces the conditions that correspond to the oracle-attested price rate with timestamp that
