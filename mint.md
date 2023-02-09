@@ -31,7 +31,7 @@ confirmed state for certain time.  Let's call this time t_{SR} for "time to Synt
 
 The absolute timelock in "Anyone can burn synth if expired price attestation was used"
 branch will enable the locked Synth to be burned by anyone after the network timestamp
-would exceed the value of (ts_{P} + i_{P} + t_{SR} + x), where
+would exceed the value of 'timestamp of burning' ts_{B} = (ts_{P} + i_{P} + t_{SR} + x), where
 
 - ts_{P} is the timestamp from price attestation data used in the first stage
 - i_{P} is the interval between two subsequent releases of subsequent price attestations by oracle
@@ -99,3 +99,15 @@ There is only one Synth output, and therefore all the issued Synth must be sent 
 covenant via this second output. The first-stage covenant code can therefore use the amount of
 the second output (that is unblinded) to reference the amount issued, even if the issuance data
 in the first input is confidential
+
+====
+
+To allow Synth to be unlocked, second-stage covenant code must ensure the following:
+
+- t_{SR} time has passed since the second-stage covenant utxo was confirmed
+- There is expected amount of collateral that is sent to the Safe covenant (the amount of collateral
+required is calculated at the first stage)
+
+To allow Synth to be burned, second-stage covenant code must ensure the following:
+
+- ts_{B} has passed in network
