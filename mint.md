@@ -1,12 +1,16 @@
-The contract for minting Synth will be split into two stages. In the first stage, the
-reissuance token will be used to mint an arbitrary amount of Synth. The reissuance token
-then will be sent to the same output script that it was spent from. Thus the reissuance
-token will be forever locked in the first stage covenant (of course there might be an
-"escape hatch"-type branch in that covenant, too)
+# Overall description
+
+The contract for minting Synth will be split into two stages, `Mint1` and `Mint2` would be
+the covenants for respective stages.
+
+In the first stage, the reissuance token will be used to mint an arbitrary amount of Synth.
+The reissuance token then will be sent to the same output script that it was spent from.
+Thus the reissuance token will be forever locked in the first stage covenant (of course
+there might be an "escape hatch"-type branch in that covenant, too)
 
 In the first-stage transaction, the Synth will be sent to the second stage covenant, and
 the second-stage covenant will release that Synth only if appropriate amount of the
-collateral is sent to be locked in the Safe covenant
+collateral is sent to be locked in the `Safe` covenant
 
 The first-stage covenant code will construct the second-stage covenant code with the use
 of oracle-attested price data, and will ensure that Synth is sent to the covenant that is
@@ -15,33 +19,33 @@ identical to that constructed covenant code.
 For constructing the second-stage covenant, the First-stage covenant will use price
 and timestamp from oracle-attested price data, and also the amount of the Synth issued,
 taken from the introspection of the first-stage transaction data. It may utilize partial
-hash opcodes (SHA256INITIALIZE, SHA256UPDATE, SHA256FINALIZE) to avoid constructing
+hash opcodes (`SHA256INITIALIZE`, `SHA256UPDATE`, `SHA256FINALIZE`) to avoid constructing
 the full code of the second-stage covenant
 
 Second-stage covenant will have two branches, one which will release synth if appropriate
-amount of collateral is locked in a Safe, and another which will allow anyone to burn the
+amount of collateral is locked in a `Safe`, and another which will allow anyone to burn the
 locked Synth if the oracle-attested price used in the first stage was out-of-date
 
 Second-stage covenant will utilize two timelocks to ensure that the oracle-attested price
 data that was used in the first stage was recent.
 
-The relative timelock in the "Synth release only if collateral is sent to Safe" branch
-will ensure that this Synth release will be possible only after the second stage was in
-confirmed state for certain time.  Let's call this time t_{SR} for "time to Synth release".
+The relative timelock in the `Synth-release` branch of `Mint2` will ensure that the release
+of Synth will be possible only after the second stage was in confirmed state for certain time.
+Let's call this time t<sub>SR</sub> for "time to Synth release".
 
-The absolute timelock in "Anyone can burn synth if expired price attestation was used"
-branch will enable the locked Synth to be burned by anyone after the network timestamp
-would exceed the value of 'timestamp of burning' ts_{B} = (ts_{P} + i_{P} + t_{SR} + x), where
+The absolute timelock in `Synth-burn` branch of `Mint2` will enable the locked Synth to be burned
+by anyone after the network timestamp would exceed the value of 'timestamp of burning'
+ts<sub>B</sub> = (ts<sub>P</sub> + I<sub>P</sub> + T<sub>SR</sub> + T<sub>leeway</sub>), where
 
-- ts_{P} is the timestamp from price attestation data used in the first stage
-- i_{P} is the interval between two subsequent releases of subsequent price attestations by oracle
-- t_{SR} is "time to Synth release"
-- x is additional time given for "leeway"
+- ts<sub>P</sub> is the timestamp from price attestation data used in the first stage
+- I<sub>P</sub> is the interval between two subsequent releases of subsequent price attestations by oracle
+- T<sub>SR</sub> is "time to Synth release"
+- T<sub>leeway</sub> is additional time given for "leeway"
 
-The minter is expected to release Synth and lock their collateral right after t_{SR} has passed
+The minter is expected to release Synth and lock their collateral right after T<sub>SR</sub> has passed
 after they sent Synth to the second stage, but before the absolute time of the timelock of
 "Burn Synth" branch is reached. If mailcious minter uses an expired attestation data, the
-timestamp ts_{P} will be too far in the past, and the "Burn synth" branch will be enabled right
+timestamp ts<sub>P</sub> will be too far in the past, and the "Burn synth" branch will be enabled right
 from the start of the second stage, before the relative timelock of "Synth release" branch
 has passed
 
@@ -57,21 +61,21 @@ correct functioning of the contract, burning malicious minting attempts may be b
 the order of the contract will be preserved, and paying network fee in this case could be an
 acceptable price
 
-====
+## First-stage covenant
+
+To be referred to as `Mint1`
 
 To unlock reissuance token (RT), first-stage covenant code must ensure the following:
 
 - Transaction contains exactly two inputs
-
-    * First input is blinded
-    * Second input is unblined, and contains L-BTC (to pay the fee)
+  * First input is blinded
+  * Second input is unblined, and contains L-BTC (to pay the fee)
 
 - Transaction contains three or four outputs
-
-    * Output script of the first output is the same as the output script of the first input
-    * Second output is ublinded Synth that goes to second stage covenant
-    * Next output (may be absent) is unblinded L-BTC (change from the fee)
-    * Last output is the transaction fee (L-BTC)
+  * Output script of the first output is the same as the output script of the first input
+  * Second output is ublinded Synth that goes to second stage covenant
+  * Next output (may be absent) is unblinded L-BTC (change from the fee)
+  * Last output is the transaction fee (L-BTC)
 
 Note: if the first stage would include paying the minting fee to the treasury, then the transaction
 will have one extra mandatory output (which will be unblinded, too), and that output will be sending
@@ -100,14 +104,18 @@ covenant via this second output. The first-stage covenant code can therefore use
 the second output (that is unblinded) to reference the amount issued, even if the issuance data
 in the first input is confidential
 
-====
+## Second-stage covenant
 
-To allow Synth to be unlocked, second-stage covenant code must ensure the following:
+To be referred to as `Mint1`
 
-- t_{SR} time has passed since the second-stage covenant utxo was confirmed
-- There is expected amount of collateral that is sent to the Safe covenant (the amount of collateral
+To allow Synth to be unlocked (the `Synth-release` branch), second-stage covenant code must ensure
+the following:
+
+- T<sub>SR</sub> time has passed since the second-stage covenant utxo was confirmed
+- There is expected amount of collateral that is sent to the `Safe` covenant (the amount of collateral
 required is calculated at the first stage)
 
-To allow Synth to be burned, second-stage covenant code must ensure the following:
+To allow Synth to be burned (the `Synth-burn` branch), second-stage covenant code must ensure
+the following:
 
-- ts_{B} has passed in network
+- ts<sub>B</sub> has passed in the network
