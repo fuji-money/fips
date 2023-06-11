@@ -5,7 +5,7 @@ FIP stand for **Fuji Implementation Possibilities**. They exist to document what
 - [FIP-02 Encoding of the Oracle's signed price attestation](02.md)
 - [FIP-03 Safe](03.md)
 - [FIP-04 Issuance of Fuji assets](04.md)
-- [FIP-05 Hunter](05.md)
+- [FIP-05 Liquidator Pools](05.md)
 
 
 ## License
